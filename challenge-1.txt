@@ -1,9 +1,20 @@
 # Challenge 1
 # By: Eric Hebert
 # Please take a look at https://toroban.com/ if you enjoy these puzzles.
-# Hint: Placeholder
-
-The text here could be used for another part of the challenge. Maybe it is much more difficult with sha256/blake3, sliding windows, big number math, huge memory space requirements mixed with multi-threading, scheduling, etc.
-
-Just need this here temporarily to be able to generate part 0 for testing.
-
+#
+#
+#  ██████ ██   ██  █████  ██      ██      ███████ ███    ██  ██████  ███████      ██
+# ██      ██   ██ ██   ██ ██      ██      ██      ████   ██ ██       ██          ███
+# ██      ███████ ███████ ██      ██      █████   ██ ██  ██ ██   ███ █████        ██
+# ██      ██   ██ ██   ██ ██      ██      ██      ██  ██ ██ ██    ██ ██           ██
+#  ██████ ██   ██ ██   ██ ███████ ███████ ███████ ██   ████  ██████  ███████      ██
+#
+#
+# Hint: This file is similar to the first, except now each crc32 has been run
+# in a chain of rounds. Each crc32 output is fed into the input of the next
+# round, in big endian byte order. If the checksum result is a u32 of
+# 2864434245 (hex AABBCC45), then the input for the next checksum will be the
+# four bytes [0xAA, 0xBB, 0xCC, 0x45].
+#
+# Format: n:crc32, where n is the number of crc32 rounds (n was always 1 for
+# challenge 0)

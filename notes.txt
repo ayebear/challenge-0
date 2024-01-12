@@ -1,0 +1,13 @@
+
+The text here could be used for another part of the challenge. Maybe it is much more difficult with sha256/blake3, sliding windows, big number math, huge memory space requirements mixed with multi-threading, scheduling, etc.
+
+Just need this here temporarily to be able to generate part 0 for testing.
+
+can just use a Vec<u32> directly to cache crc32 inputs and outputs (input is vec index, output is vec value).
+
+should have massive numbers here (64-bit) and the trick is to modulo them by 2^32 or whatever the crc32 period is.
+
+log2(s) time complexity is possible similar to hashlife, if you build step-skipping tables for each step size pow of 2. and then you just use the bits of the "rounds" number to point to the correct step tables until you've skipped over the exact number of rounds.
+
+single solution sudoku boards (3x3), sums/products/hashes of those numbers can be used as number of rounds of conway's game of life board to be simulated, and the resulting GOL state is used as the decryption key for the encrypted data for the next round.
+
