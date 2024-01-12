@@ -27,6 +27,8 @@ fn generate1() -> Result<()> {
     while c1.len() % 4 != 0 {
         c1.push(b'\n');
     }
+    let table = build_memo_table();
+    eprintln!("Generating multiple rounds of CRC32 every 4 bytes");
     let mut r = 42;
     let results: Vec<(String, u64)> = c1
         .chunks_exact(4)
@@ -39,7 +41,7 @@ fn generate1() -> Result<()> {
             (buf, count as u64, fake_count)
         })
         .par_bridge()
-        .map(|(buf, count, fake_count)| (hash_rounds(count, buf), fake_count))
+        .map(|(buf, count, fake_count)| (hash_rounds(&table, count, buf), fake_count))
         .progress_count((c1.len() / 4) as u64)
         .collect();
     for (h, rounds) in results {
@@ -48,17 +50,16 @@ fn generate1() -> Result<()> {
     Ok(())
 }
 
-fn hash_rounds(count: u64, buf: &[u8]) -> String {
+fn hash_rounds(table: &[u32], count: u64, buf: &[u8]) -> String {
     let mut h = u8_slice_to_u32(&[buf[0], buf[1], buf[2], buf[3]]);
     for _ in 0..count as usize {
-        h = crc32fast::hash(&u32_to_u8_slice(h));
+        h = table[h as usize];
     }
     format!("{:0>8X}", h)
 }
 
 fn solve0() -> Result<()> {
-    eprintln!("Generating all possible CRC32 checksums");
-    let table = build_table();
+    let table = build_rainbow_table();
     eprintln!("Applying reverse lookups");
     let mut out: Vec<u8> = Vec::new();
     std::fs::read_to_string("challenge-0.txt")?
@@ -75,8 +76,20 @@ fn solve0() -> Result<()> {
     Ok(())
 }
 
+// Builds a table of input u32 -> crc32 u32
+// Used as faster way than calling crc32fast::hash each time
+fn build_memo_table() -> Vec<u32> {
+    eprintln!("Generating input->crc32 checksum memo table");
+    (0..=u32::MAX)
+        .into_par_iter()
+        .map(|i| crc32fast::hash(&u32_to_u8_slice(i)))
+        .collect()
+}
+
 // Builds a table of crc32 u32 -> input u32
-fn build_table() -> Vec<u32> {
+// Used as a rainbow table to literally crack the hashes
+fn build_rainbow_table() -> Vec<u32> {
+    eprintln!("Generating crc32->input checksum rainbow table");
     let table = vec![0u32; u32::MAX as usize + 1];
     let count = (u16::MAX as u64) + 1;
     // Multi-threaded
