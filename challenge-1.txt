@@ -1,0 +1,9 @@
+# Challenge 1
+# By: Eric Hebert
+# Please take a look at https://toroban.com/ if you enjoy these puzzles.
+# Hint: Placeholder
+
+The text here could be used for another part of the challenge. Maybe it is much more difficult with sha256/blake3, sliding windows, big number math, huge memory space requirements mixed with multi-threading, scheduling, etc.
+
+Just need this here temporarily to be able to generate part 0 for testing.
+
