@@ -37,10 +37,14 @@ fn solve() -> Result<()> {
 }
 
 fn crack(target: u32) -> String {
-    for a in 0..u8::MAX {
-        for b in 0..u8::MAX {
-            for c in 0..u8::MAX {
-                for d in 0..u8::MAX {
+    let chars = (b'a'..=b'z')
+        .chain(b'A'..=b'Z')
+        .chain(b'0'..=b'9')
+        .chain(b"!@#$%^&*()_+-=/\\[]{}|;:'\",.? \n".iter().copied());
+    for a in chars.clone() {
+        for b in chars.clone() {
+            for c in chars.clone() {
+                for d in chars.clone() {
                     let next = &[a, b, c, d];
                     if target == crc32fast::hash(next) {
                         return String::from_utf8_lossy(next).to_string();
@@ -49,5 +53,6 @@ fn crack(target: u32) -> String {
             }
         }
     }
-    panic!("crc32 not found for target {target}");
+    // If this panics, need to expand the charset, or just fallback to brute force
+    panic!("crc32 not found for target {:0>8X}", target);
 }
