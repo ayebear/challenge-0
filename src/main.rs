@@ -1,5 +1,5 @@
 use anyhow::Result;
-use indicatif::ParallelProgressIterator;
+use indicatif::{ParallelProgressIterator, ProgressIterator};
 use rayon::iter::ParallelIterator;
 use rayon::prelude::*;
 
@@ -27,23 +27,33 @@ fn generate1() -> Result<()> {
     while c1.len() % 4 != 0 {
         c1.push(b'\n');
     }
-    let mut r = prng(42);
-    c1.chunks_exact(4)
-        .map(|buf| rand_hash_rounds(&mut r, buf))
-        .for_each(|(h, rounds)| println!("{h}:{rounds}"));
+    let mut r = 42;
+    let results: Vec<(String, u64)> = c1
+        .chunks_exact(4)
+        .map(|buf| {
+            r = prng(r);
+            let count: u32 = (r & 0xffffffff) as u32;
+            r = prng(r);
+            let mut fake_count: u64 = r;
+            fake_count = (fake_count & 0xffffffff00000000) | (count as u64);
+            (buf, count as u64, fake_count)
+        })
+        .par_bridge()
+        .map(|(buf, count, fake_count)| (hash_rounds(count, buf), fake_count))
+        .progress_count((c1.len() / 4) as u64)
+        .collect();
+    for (h, rounds) in results {
+        println!("{h}:{rounds}");
+    }
     Ok(())
 }
 
-fn rand_hash_rounds(r: &mut u64, buf: &[u8]) -> (String, u64) {
-    let count: u16 = (*r & 0xffff) as u16;
-    *r = prng(*r);
-    let mut fake_count: u64 = *r;
-    fake_count = (fake_count & 0xffffffffffff0000) | (count as u64);
+fn hash_rounds(count: u64, buf: &[u8]) -> String {
     let mut h = u8_slice_to_u32(&[buf[0], buf[1], buf[2], buf[3]]);
     for _ in 0..count as usize {
         h = crc32fast::hash(&u32_to_u8_slice(h));
     }
-    (format!("{:0>8X}", h), fake_count)
+    format!("{:0>8X}", h)
 }
 
 fn solve0() -> Result<()> {
