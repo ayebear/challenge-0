@@ -1,4 +1,6 @@
 use anyhow::Result;
+use indicatif::ParallelProgressIterator;
+use rayon::iter::ParallelIterator;
 use rayon::prelude::*;
 
 fn main() -> Result<()> {
@@ -35,9 +37,9 @@ fn rand_hash_rounds(buf: &[u8]) -> (u64, String) {
 }
 
 fn solve() -> Result<()> {
-    eprintln!("building table");
+    eprintln!("Generating all possible CRC32 checksums");
     let table = build_table();
-    eprintln!("built table");
+    eprintln!("Applying reverse lookups");
     let mut out: Vec<u8> = Vec::new();
     std::fs::read_to_string("challenge-0.txt")?
         .lines()
@@ -45,33 +47,32 @@ fn solve() -> Result<()> {
         .for_each(|line| {
             let output = u32::from_str_radix(line, 16).expect("valid hex");
             let input_slice = u32_to_u8_slice(table[output as usize]);
-            // let input = String::from_utf8_lossy(&input_slice).to_string();
             out.extend(input_slice);
         });
-    // let out = results.iter().fold(String::new(), |a, b| a + &b);
-    // println!("{out}");
     let out = String::from_utf8(out)?;
     print!("{out}");
-    eprint!("{out}");
-    eprintln!("done");
+    eprintln!("Done!");
     Ok(())
 }
 
 // Builds a table of crc32 u32 -> input u32
 fn build_table() -> Vec<u32> {
     let table = vec![0u32; u32::MAX as usize + 1];
-    // Single threaded
-    // for i in 0..=u32::MAX {
-    //     let h = crc32fast::hash(&u32_to_u8_slice(i));
-    //     table[h as usize] = i;
-    // }
+    let count = (u16::MAX as u64) + 1;
     // Multi-threaded
-    (0..=u32::MAX).into_par_iter().for_each(|i| {
-        let h = crc32fast::hash(&u32_to_u8_slice(i));
-        unsafe {
-            set_unsync(&table, h as usize, i);
-        }
-    });
+    // Split up into two 16-bit parts to reduce thread over-subscription and progress bar overhead
+    (0..=u16::MAX)
+        .into_par_iter()
+        .progress_count(count)
+        .for_each(|a| {
+            for b in 0..=u16::MAX {
+                let i = ((a as u32) << 16) | (b as u32);
+                let h = crc32fast::hash(&u32_to_u8_slice(i));
+                unsafe {
+                    set_unsync(&table, h as usize, i);
+                }
+            }
+        });
     table
 }
 
