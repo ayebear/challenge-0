@@ -59,16 +59,26 @@ fn solve() -> Result<()> {
 
 // Builds a table of crc32 u32 -> input u32
 fn build_table() -> Vec<u32> {
-    let mut table = vec![0u32; u32::MAX as usize + 1];
-    for i in 0..=u32::MAX {
+    let table = vec![0u32; u32::MAX as usize + 1];
+    // Single threaded
+    // for i in 0..=u32::MAX {
+    //     let h = crc32fast::hash(&u32_to_u8_slice(i));
+    //     table[h as usize] = i;
+    // }
+    // Multi-threaded
+    (0..=u32::MAX).into_par_iter().for_each(|i| {
         let h = crc32fast::hash(&u32_to_u8_slice(i));
-        table[h as usize] = i;
-    }
+        unsafe {
+            set_unsync(&table, h as usize, i);
+        }
+    });
     table
-    // (0..=u32::MAX)
-    //     .into_par_iter()
-    //     .map(|n| crc32fast::hash(&u32_to_u8_slice(n)))
-    //     .collect()
+}
+
+// Source: https://stackoverflow.com/a/74020904
+unsafe fn set_unsync<T>(vec: &[T], idx: usize, val: T) {
+    let start = vec.as_ptr() as *mut T;
+    *start.add(idx) = val
 }
 
 // Big endian converter
