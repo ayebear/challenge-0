@@ -27,7 +27,7 @@ fn generate1() -> Result<()> {
     while c1.len() % 4 != 0 {
         c1.push(b'\n');
     }
-    let table = build_memo_table();
+    let table = build_sequence_table();
     eprintln!("Generating multiple rounds of CRC32 every 4 bytes");
     let mut r = 42;
     let results: Vec<(String, u64)> = c1
@@ -50,14 +50,6 @@ fn generate1() -> Result<()> {
     Ok(())
 }
 
-fn hash_rounds(table: &[u32], count: u64, buf: &[u8]) -> String {
-    let mut h = u8_slice_to_u32(&[buf[0], buf[1], buf[2], buf[3]]);
-    for _ in 0..count as usize {
-        h = table[h as usize];
-    }
-    format!("{:0>8X}", h)
-}
-
 fn solve0() -> Result<()> {
     let table = build_rainbow_table();
     eprintln!("Applying reverse lookups");
@@ -76,14 +68,39 @@ fn solve0() -> Result<()> {
     Ok(())
 }
 
-// Builds a table of input u32 -> crc32 u32
-// Used as faster way than calling crc32fast::hash each time
-fn build_memo_table() -> Vec<u32> {
+fn hash_rounds(table: &[u32], count: u64, buf: &[u8]) -> String {
+    let mut h = u8_slice_to_u32(&[buf[0], buf[1], buf[2], buf[3]]);
+    // for _ in 0..count as usize {
+    //     h = table[h as usize];
+    // }
+    format!("{:0>8X}", h)
+}
+
+// Builds a table in sorted order of hash(0), hash(hash(0)), hash(hash(hash(0))), ...
+// This is so you can easily skip rounds once you've found your hash, you just
+// increment the index by n to skip n rounds.
+fn build_sequence_table() -> Vec<u32> {
     eprintln!("Generating input->crc32 checksum memo table");
-    (0..=u32::MAX)
-        .into_par_iter()
-        .map(|i| crc32fast::hash(&u32_to_u8_slice(i)))
-        .collect()
+    let mut out = Vec::with_capacity(u32::MAX as usize + 1);
+    let mut last = 0;
+    /*
+    will need dual indexes
+    group_id -> sequence table: hash, hash(hash), ...
+    hash -> (group_id, index)
+
+    will need to still process all u32's
+    and find all groups of periods for all of them
+    but can be similar to checking visited and speeding up along the way, such that it's almost O(n)
+    */
+    for _ in 0..=u32::MAX {
+        last = crc32fast::hash(&u32_to_u8_slice(last));
+        out.push(last);
+        if last == 0 {
+            eprintln!("Detected period length: {}", out.len());
+            break;
+        }
+    }
+    out
 }
 
 // Builds a table of crc32 u32 -> input u32
