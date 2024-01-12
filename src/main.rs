@@ -38,18 +38,21 @@ fn solve() -> Result<()> {
     eprintln!("building table");
     let table = build_table();
     eprintln!("built table");
+    let mut out: Vec<u8> = Vec::new();
     std::fs::read_to_string("challenge-0.txt")?
         .lines()
         .filter(|line| !line.starts_with('#') && line.len() == 8)
         .for_each(|line| {
             let output = u32::from_str_radix(line, 16).expect("valid hex");
             let input_slice = u32_to_u8_slice(table[output as usize]);
-            let input = String::from_utf8_lossy(&input_slice).to_string();
-            print!("{input}");
-            eprint!("{input}");
+            // let input = String::from_utf8_lossy(&input_slice).to_string();
+            out.extend(input_slice);
         });
     // let out = results.iter().fold(String::new(), |a, b| a + &b);
     // println!("{out}");
+    let out = String::from_utf8(out)?;
+    print!("{out}");
+    eprint!("{out}");
     eprintln!("done");
     Ok(())
 }
