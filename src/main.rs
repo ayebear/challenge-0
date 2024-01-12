@@ -1,4 +1,5 @@
 use anyhow::Result;
+use rayon::prelude::*;
 
 fn main() -> Result<()> {
     // generate()?;
@@ -22,14 +23,16 @@ fn generate() -> Result<()> {
 }
 
 fn solve() -> Result<()> {
-    std::fs::read_to_string("challenge-0.txt")?
-        .lines()
+    let results: Vec<String> = std::fs::read_to_string("challenge-0.txt")?
+        .par_lines()
         .filter(|line| !line.starts_with('#') && line.len() == 8)
-        .for_each(|line| {
+        .map(|line| {
             let h = u32::from_str_radix(line, 16).expect("valid hex");
-            let data = crack(h);
-            print!("{data}");
-        });
+            crack(h)
+        })
+        .collect();
+    let out = results.iter().fold(String::new(), |a, b| a + &b);
+    println!("{out}");
     Ok(())
 }
 
