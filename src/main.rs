@@ -5,8 +5,9 @@ use rayon::prelude::*;
 
 fn main() -> Result<()> {
     // generate0()?;
-    // generate1()?;
-    solve()?;
+    generate1()?;
+    // solve0()?;
+    // solve1()?;
     Ok(())
 }
 
@@ -26,17 +27,26 @@ fn generate1() -> Result<()> {
     while c1.len() % 4 != 0 {
         c1.push(b'\n');
     }
+    let mut r = prng(42);
     c1.chunks_exact(4)
-        .map(rand_hash_rounds)
-        .for_each(|(rounds, h)| println!("{rounds}:{h}"));
+        .map(|buf| rand_hash_rounds(&mut r, buf))
+        .for_each(|(h, rounds)| println!("{h}:{rounds}"));
     Ok(())
 }
 
-fn rand_hash_rounds(buf: &[u8]) -> (u64, String) {
-    todo!()
+fn rand_hash_rounds(r: &mut u64, buf: &[u8]) -> (String, u64) {
+    let count: u16 = (*r & 0xffff) as u16;
+    *r = prng(*r);
+    let mut fake_count: u64 = *r;
+    fake_count = (fake_count & 0xffffffffffff0000) | (count as u64);
+    let mut h = u8_slice_to_u32(&[buf[0], buf[1], buf[2], buf[3]]);
+    for _ in 0..count as usize {
+        h = crc32fast::hash(&u32_to_u8_slice(h));
+    }
+    (format!("{:0>8X}", h), fake_count)
 }
 
-fn solve() -> Result<()> {
+fn solve0() -> Result<()> {
     eprintln!("Generating all possible CRC32 checksums");
     let table = build_table();
     eprintln!("Applying reverse lookups");
@@ -93,25 +103,13 @@ fn u32_to_u8_slice(n: u32) -> [u8; 4] {
 }
 
 // Big endian converter
-fn u8_slice_to_u32(s: &[u8; 4]) -> u32 {
-    todo!()
+fn u8_slice_to_u32(b: &[u8; 4]) -> u32 {
+    ((b[0] as u32) << 24) | ((b[1] as u32) << 16) | ((b[2] as u32) << 8) | (b[3] as u32)
 }
 
-fn crack(target: u32) -> String {
-    for a in 0..128 {
-        for b in 0..128 {
-            for c in 0..128 {
-                for d in 0..128 {
-                    let next = &[a, b, c, d];
-                    if target == crc32fast::hash(next) {
-                        return String::from_utf8_lossy(next).to_string();
-                    }
-                }
-            }
-        }
-    }
-    // If this panics, need to expand the charset, or just fallback to brute force
-    panic!("crc32 not found for target {:0>8X}", target);
+fn prng(seed: u64) -> u64 {
+    const S: u64 = 6364136223846793005;
+    seed.wrapping_mul(S).wrapping_add(1)
 }
 
 #[cfg(test)]

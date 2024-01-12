@@ -16,5 +16,5 @@
 # 2864434245 (hex AABBCC45), then the input for the next checksum will be the
 # four bytes [0xAA, 0xBB, 0xCC, 0x45].
 #
-# Format: n:crc32, where n is the number of crc32 rounds (n was always 1 for
+# Format: crc32:n, where n is the number of crc32 rounds (n was always 1 for
 # challenge 0)
