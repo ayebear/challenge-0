@@ -1,13 +1,13 @@
 use anyhow::Result;
-use indicatif::{ParallelProgressIterator, ProgressIterator};
+use indicatif::ParallelProgressIterator;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::*;
 
 fn main() -> Result<()> {
-    generate0()?;
+    // generate0()?;
     // generate1()?;
     // solve0()?;
-    // solve1()?;
+    solve1()?;
     Ok(())
 }
 
@@ -54,6 +54,24 @@ fn solve0() -> Result<()> {
     eprintln!("Applying reverse lookups");
     let mut out: Vec<u8> = Vec::new();
     std::fs::read_to_string("challenge-0.txt")?
+        .lines()
+        .filter(|line| !line.starts_with('#') && line.len() == 8)
+        .for_each(|line| {
+            let output = u32::from_str_radix(line, 16).expect("valid hex");
+            let input_slice = u32_to_u8_slice(table[output as usize]);
+            out.extend(input_slice);
+        });
+    let out = String::from_utf8(out)?;
+    print!("{out}");
+    eprintln!("Done!");
+    Ok(())
+}
+
+fn solve1() -> Result<()> {
+    let table = build_rainbow_table();
+    eprintln!("Applying reverse lookups");
+    let mut out: Vec<u8> = Vec::new();
+    std::fs::read_to_string("challenge-1.txt")?
         .lines()
         .filter(|line| !line.starts_with('#') && line.len() == 8)
         .for_each(|line| {
