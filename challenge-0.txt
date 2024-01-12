@@ -11,6 +11,7 @@
 #
 #
 # Hint: Each line is a crc32 generated from 4 bytes of input data.
+# The rust crate crc32fast was used to generate the data for these challenges.
 33B36C80
 1783CC42
 94C13DA3
