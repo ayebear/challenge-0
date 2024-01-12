@@ -4,8 +4,8 @@ use rayon::iter::ParallelIterator;
 use rayon::prelude::*;
 
 fn main() -> Result<()> {
-    // generate0()?;
-    generate1()?;
+    generate0()?;
+    // generate1()?;
     // solve0()?;
     // solve1()?;
     Ok(())
