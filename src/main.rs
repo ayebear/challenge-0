@@ -27,7 +27,6 @@ fn generate1() -> Result<()> {
     while c1.len() % 4 != 0 {
         c1.push(b'\n');
     }
-    let table = build_sequence_table();
     eprintln!("Generating multiple rounds of CRC32 every 4 bytes");
     let mut r = 42;
     let results: Vec<(String, u64)> = c1
@@ -41,7 +40,7 @@ fn generate1() -> Result<()> {
             (buf, count as u64, fake_count)
         })
         .par_bridge()
-        .map(|(buf, count, fake_count)| (hash_rounds(&table, count, buf), fake_count))
+        .map(|(buf, count, fake_count)| (hash_rounds(count, buf), fake_count))
         .progress_count((c1.len() / 4) as u64)
         .collect();
     for (h, rounds) in results {
@@ -68,11 +67,11 @@ fn solve0() -> Result<()> {
     Ok(())
 }
 
-fn hash_rounds(table: &[u32], count: u64, buf: &[u8]) -> String {
+fn hash_rounds(count: u64, buf: &[u8]) -> String {
     let mut h = u8_slice_to_u32(&[buf[0], buf[1], buf[2], buf[3]]);
-    // for _ in 0..count as usize {
-    //     h = table[h as usize];
-    // }
+    for _ in 0..count as usize {
+        h = crc32fast::hash(&u32_to_u8_slice(h));
+    }
     format!("{:0>8X}", h)
 }
 
