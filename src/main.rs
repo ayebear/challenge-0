@@ -30,18 +30,22 @@ fn generate1() -> Result<()> {
     }
     eprintln!("Generating multiple rounds of CRC32 every 4 bytes");
     let mut r = 42;
-    let results: Vec<(String, u64)> = c1
+    let rounds: Vec<(u32, u64)> = c1
         .chunks_exact(4)
         .map(|buf| {
             r = prng(r);
-            (buf, r)
+            let h = u8_slice_to_u32(&[buf[0], buf[1], buf[2], buf[3]]);
+            (h, r)
         })
-        .par_bridge()
-        .map(|(buf, count)| (hash_rounds(count, buf), count))
-        .progress_count((c1.len() / 4) as u64)
         .collect();
-    for (h, rounds) in results {
-        println!("{h}:{rounds}");
+    let total = (rounds.len() / 4) as u64;
+    let results: Vec<(String, u64)> = rounds
+        .into_par_iter()
+        .map(|(h, count)| (hash_rounds(count, h), count))
+        .progress_count(total)
+        .collect();
+    for (h, count) in results {
+        println!("{h}:{count}");
     }
     Ok(())
 }
@@ -84,13 +88,12 @@ fn solve1() -> Result<()> {
     // Ok(())
 }
 
-fn hash_rounds(count: u64, buf: &[u8]) -> String {
+fn hash_rounds(count: u64, mut h: u32) -> String {
     let mut memo = Vec::new();
-    let mut h = u8_slice_to_u32(&[buf[0], buf[1], buf[2], buf[3]]);
-    for i in 0..count as usize {
+    for _ in 0..count as usize {
         h = crc32fast::hash(&u32_to_u8_slice(h));
         if !memo.is_empty() && memo[0] == h {
-            eprintln!("period found at {i}, memo size {}", memo.len());
+            // eprintln!("period found at {i}, memo size {}", memo.len());
             break;
         }
         memo.push(h);
