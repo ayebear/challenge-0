@@ -1,15 +1,14 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
 use indicatif::ParallelProgressIterator;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::*;
+use std::collections::HashMap;
 
 fn main() -> Result<()> {
     // generate0()?;
-    // generate1()?;
+    generate1()?;
     // solve0()?;
-    solve1()?;
+    // solve1()?;
     Ok(())
 }
 
@@ -35,14 +34,10 @@ fn generate1() -> Result<()> {
         .chunks_exact(4)
         .map(|buf| {
             r = prng(r);
-            let count: u32 = (r & 0xffffffff) as u32;
-            r = prng(r);
-            let mut fake_count: u64 = r;
-            fake_count = (fake_count & 0xffffffff00000000) | (count as u64);
-            (buf, count as u64, fake_count)
+            (buf, r)
         })
         .par_bridge()
-        .map(|(buf, count, fake_count)| (hash_rounds(count, buf), fake_count))
+        .map(|(buf, count)| (hash_rounds(count, buf), count))
         .progress_count((c1.len() / 4) as u64)
         .collect();
     for (h, rounds) in results {
@@ -90,11 +85,19 @@ fn solve1() -> Result<()> {
 }
 
 fn hash_rounds(count: u64, buf: &[u8]) -> String {
+    let mut memo = Vec::new();
     let mut h = u8_slice_to_u32(&[buf[0], buf[1], buf[2], buf[3]]);
-    for _ in 0..count as usize {
+    for i in 0..count as usize {
         h = crc32fast::hash(&u32_to_u8_slice(h));
+        if !memo.is_empty() && memo[0] == h {
+            eprintln!("period found at {i}, memo size {}", memo.len());
+            break;
+        }
+        memo.push(h);
     }
-    format!("{:0>8X}", h)
+    let index = count as usize % memo.len();
+    let final_hash = memo[index];
+    format!("{:0>8X}", final_hash)
 }
 
 // Builds a table in sorted order of hash(0), hash(hash(0)), hash(hash(hash(0))), ...
