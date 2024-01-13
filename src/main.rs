@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 use indicatif::ParallelProgressIterator;
 use rayon::iter::ParallelIterator;
@@ -68,21 +70,23 @@ fn solve0() -> Result<()> {
 }
 
 fn solve1() -> Result<()> {
-    let table = build_rainbow_table();
+    let (groups, hash_index) = build_sequence_tables();
+    eprintln!("table sizes: {}, {}", groups.len(), hash_index.len());
     eprintln!("Applying reverse lookups");
-    let mut out: Vec<u8> = Vec::new();
-    std::fs::read_to_string("challenge-1.txt")?
-        .lines()
-        .filter(|line| !line.starts_with('#') && line.len() == 8)
-        .for_each(|line| {
-            let output = u32::from_str_radix(line, 16).expect("valid hex");
-            let input_slice = u32_to_u8_slice(table[output as usize]);
-            out.extend(input_slice);
-        });
-    let out = String::from_utf8(out)?;
-    print!("{out}");
-    eprintln!("Done!");
-    Ok(())
+    todo!()
+    // let mut out: Vec<u8> = Vec::new();
+    // std::fs::read_to_string("challenge-1.txt")?
+    //     .lines()
+    //     .filter(|line| !line.starts_with('#') && line.len() == 8)
+    //     .for_each(|line| {
+    //         let output = u32::from_str_radix(line, 16).expect("valid hex");
+    //         let input_slice = u32_to_u8_slice(table[output as usize]);
+    //         out.extend(input_slice);
+    //     });
+    // let out = String::from_utf8(out)?;
+    // print!("{out}");
+    // eprintln!("Done!");
+    // Ok(())
 }
 
 fn hash_rounds(count: u64, buf: &[u8]) -> String {
@@ -96,10 +100,12 @@ fn hash_rounds(count: u64, buf: &[u8]) -> String {
 // Builds a table in sorted order of hash(0), hash(hash(0)), hash(hash(hash(0))), ...
 // This is so you can easily skip rounds once you've found your hash, you just
 // increment the index by n to skip n rounds.
-fn build_sequence_table() -> Vec<u32> {
+fn build_sequence_tables() -> (Vec<Vec<u32>>, Vec<(u32, u32)>) {
     eprintln!("Generating input->crc32 checksum memo table");
-    let mut out = Vec::with_capacity(u32::MAX as usize + 1);
-    let mut last = 0;
+    // group_id -> sequence table: hash, hash(hash), ...
+    let mut groups: Vec<Vec<u32>> = Vec::new();
+    // hash -> (group_id, index)
+    let mut hash_index: Vec<Option<(u32, u32)>> = vec![None; u32::MAX as usize + 1];
     /*
     will need dual indexes
     group_id -> sequence table: hash, hash(hash), ...
@@ -109,15 +115,32 @@ fn build_sequence_table() -> Vec<u32> {
     and find all groups of periods for all of them
     but can be similar to checking visited and speeding up along the way, such that it's almost O(n)
     */
-    for _ in 0..=u32::MAX {
-        last = crc32fast::hash(&u32_to_u8_slice(last));
-        out.push(last);
-        if last == 0 {
-            eprintln!("Detected period length: {}", out.len());
-            break;
+    for i in 0..=u32::MAX {
+        // Skip already processed hashes
+        if hash_index[i as usize].is_some() {
+            continue;
         }
+        // Build entire sequence for this hash
+        let mut last = i;
+        let mut seq = Vec::new();
+        while i != last || seq.is_empty() {
+            last = crc32fast::hash(&u32_to_u8_slice(last));
+            seq.push(last);
+        }
+        // Add hashes to index
+        let group_id = groups.len() as u32;
+        for (i, &h) in seq.iter().enumerate() {
+            assert!(hash_index[h as usize].is_none(), "hash collision, should be impossible since it should match an existing group sequence");
+            hash_index[h as usize] = Some((group_id, i as u32));
+        }
+        eprintln!(
+            "Sequence {group_id} of length {} starting at hash {i}",
+            seq.len()
+        );
+        groups.push(seq);
     }
-    out
+    let hash_index: Option<Vec<_>> = hash_index.into_iter().collect();
+    (groups, hash_index.expect("full hash index"))
 }
 
 // Builds a table of crc32 u32 -> input u32
