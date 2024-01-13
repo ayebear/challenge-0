@@ -5,8 +5,8 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 
 fn main() -> Result<()> {
-    // generate0()?;
-    generate1()?;
+    generate0()?;
+    // generate1()?;
     // solve0()?;
     // solve1()?;
     Ok(())
