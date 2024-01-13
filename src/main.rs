@@ -70,8 +70,7 @@ fn solve0() -> Result<()> {
 
 fn solve1() -> Result<()> {
     let table = build_rainbow_table();
-    eprintln!("Applying reverse lookups");
-    let mut out: Vec<u8> = Vec::new();
+    eprintln!("Parsing challenge file");
     let jobs: Vec<(u64, u32)> = std::fs::read_to_string("challenge-1.txt")?
         .lines()
         .filter(|line| !line.starts_with('#') && !line.is_empty())
@@ -82,13 +81,17 @@ fn solve1() -> Result<()> {
             (count, out_hash)
         })
         .collect();
+    eprintln!("Applying reverse lookups");
     let total = jobs.len() as u64;
-    jobs.iter()
+    let results: Vec<[u8; 4]> = jobs
+        .par_iter()
         .progress_count(total)
-        .for_each(|&(count, out_hash)| {
-            let input_slice = u32_to_u8_slice(unhash_rounds(&table, count, out_hash));
-            out.extend(input_slice);
-        });
+        .map(|&(count, out_hash)| u32_to_u8_slice(unhash_rounds(&table, count, out_hash)))
+        .collect();
+    let mut out: Vec<u8> = Vec::new();
+    for chunk in results {
+        out.extend(chunk);
+    }
     let out = String::from_utf8(out)?;
     print!("{out}");
     eprintln!("Done!");
