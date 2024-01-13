@@ -1,14 +1,14 @@
 use anyhow::Result;
-use indicatif::ParallelProgressIterator;
+use indicatif::{ParallelProgressIterator, ProgressIterator};
 use rayon::iter::ParallelIterator;
 use rayon::prelude::*;
 use std::collections::HashMap;
 
 fn main() -> Result<()> {
-    generate0()?;
+    // generate0()?;
     // generate1()?;
     // solve0()?;
-    // solve1()?;
+    solve1()?;
     Ok(())
 }
 
@@ -69,23 +69,30 @@ fn solve0() -> Result<()> {
 }
 
 fn solve1() -> Result<()> {
-    let (groups, hash_index) = build_sequence_tables();
-    eprintln!("table sizes: {}, {}", groups.len(), hash_index.len());
+    let table = build_rainbow_table();
     eprintln!("Applying reverse lookups");
-    todo!()
-    // let mut out: Vec<u8> = Vec::new();
-    // std::fs::read_to_string("challenge-1.txt")?
-    //     .lines()
-    //     .filter(|line| !line.starts_with('#') && line.len() == 8)
-    //     .for_each(|line| {
-    //         let output = u32::from_str_radix(line, 16).expect("valid hex");
-    //         let input_slice = u32_to_u8_slice(table[output as usize]);
-    //         out.extend(input_slice);
-    //     });
-    // let out = String::from_utf8(out)?;
-    // print!("{out}");
-    // eprintln!("Done!");
-    // Ok(())
+    let mut out: Vec<u8> = Vec::new();
+    let jobs: Vec<(u64, u32)> = std::fs::read_to_string("challenge-1.txt")?
+        .lines()
+        .filter(|line| !line.starts_with('#') && !line.is_empty())
+        .map(|line| {
+            let (hex, count_str) = line.split_at(8);
+            let out_hash = u32::from_str_radix(hex, 16).expect("valid hex");
+            let count: u64 = count_str[1..].parse().expect("valid number");
+            (count, out_hash)
+        })
+        .collect();
+    let total = jobs.len() as u64;
+    jobs.iter()
+        .progress_count(total)
+        .for_each(|&(count, out_hash)| {
+            let input_slice = u32_to_u8_slice(unhash_rounds(&table, count, out_hash));
+            out.extend(input_slice);
+        });
+    let out = String::from_utf8(out)?;
+    print!("{out}");
+    eprintln!("Done!");
+    Ok(())
 }
 
 fn hash_rounds(count: u64, mut h: u32) -> String {
@@ -101,6 +108,20 @@ fn hash_rounds(count: u64, mut h: u32) -> String {
     let index = count as usize % memo.len();
     let final_hash = memo[index];
     format!("{:0>8X}", final_hash)
+}
+
+fn unhash_rounds(table: &[u32], count: u64, mut h: u32) -> u32 {
+    let mut memo = Vec::new();
+    for _ in 0..count as usize {
+        h = table[h as usize];
+        if !memo.is_empty() && memo[0] == h {
+            // eprintln!("period found at {i}, memo size {}", memo.len());
+            break;
+        }
+        memo.push(h);
+    }
+    let index = count as usize % memo.len();
+    memo[index]
 }
 
 // Builds a table in sorted order of hash(0), hash(hash(0)), hash(hash(hash(0))), ...
