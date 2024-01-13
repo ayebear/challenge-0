@@ -46,6 +46,7 @@
 # Format: c:n
 # c = crc32 checksum hex digits
 # n = number of crc32 rounds, in base 10. This was essentially 1 in challenge 0.
+#
 842D6EDE:9039304369631583587
 01A58475:8647191391818483560
 0388D56D:10334312345110439241
