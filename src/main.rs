@@ -12,8 +12,9 @@ fn main() -> Result<()> {
     let flag = env::args().nth(1).unwrap_or_default();
     match flag.as_str() {
         "solve" => {
-            solve0()?;
-            solve1()?;
+            let table = build_rainbow_table();
+            solve0(&table)?;
+            solve1(&table)?;
         }
         "generate" => {
             generate1()?;
@@ -83,26 +84,24 @@ fn generate1() -> Result<()> {
     Ok(())
 }
 
-fn solve0() -> Result<()> {
-    let table = build_rainbow_table();
+fn solve0(table: &[u32]) -> Result<()> {
     eprintln!("Applying reverse lookups");
-    let mut out: Vec<u8> = Vec::new();
-    fs::read_to_string("challenge-0.txt")?
+    let mut out = BufWriter::new(File::create("challenge-1.txt")?);
+    let input = fs::read_to_string("challenge-0.txt")?;
+    let lines = input
         .lines()
-        .filter(|line| !line.starts_with('#') && line.len() == 8)
-        .for_each(|line| {
-            let output = u32::from_str_radix(line, 16).expect("valid hex");
-            let input_slice = u32_to_u8_slice(table[output as usize]);
-            out.extend(input_slice);
-        });
-    let out = String::from_utf8(out)?;
-    print!("{out}");
-    eprintln!("Done!");
+        .filter(|line| !line.starts_with('#') && line.len() == 8);
+    for line in lines {
+        let output = u32::from_str_radix(line, 16).expect("valid hex");
+        let input_slice = u32_to_u8_slice(table[output as usize]);
+        out.write_all(&input_slice)?;
+    }
+    out.flush()?;
+    eprintln!("Wrote challenge-1.txt");
     Ok(())
 }
 
-fn solve1() -> Result<()> {
-    let table = build_rainbow_table();
+fn solve1(table: &[u32]) -> Result<()> {
     eprintln!("Parsing challenge file");
     let jobs: Vec<(u64, u32)> = fs::read_to_string("challenge-1.txt")?
         .lines()
@@ -119,15 +118,14 @@ fn solve1() -> Result<()> {
     let results: Vec<[u8; 4]> = jobs
         .par_iter()
         .progress_count(total)
-        .map(|&(count, out_hash)| u32_to_u8_slice(unhash_rounds(&table, count, out_hash)))
+        .map(|&(count, out_hash)| u32_to_u8_slice(unhash_rounds(table, count, out_hash)))
         .collect();
-    let mut out: Vec<u8> = Vec::new();
-    for chunk in results {
-        out.extend(chunk);
+    let mut out = BufWriter::new(File::create("challenge-2.txt")?);
+    for chunk in &results {
+        out.write_all(chunk)?;
     }
-    let out = String::from_utf8(out)?;
-    print!("{out}");
-    eprintln!("Done!");
+    out.flush()?;
+    eprintln!("Wrote challenge-2.txt");
     Ok(())
 }
 
