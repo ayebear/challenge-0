@@ -1,36 +1,66 @@
 use anyhow::Result;
-use indicatif::{ParallelProgressIterator, ProgressIterator};
+use indicatif::ParallelProgressIterator;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::*;
-use std::collections::HashMap;
+use std::{
+    env,
+    fs::{self, File},
+    io::{BufWriter, Write},
+};
 
 fn main() -> Result<()> {
-    // generate0()?;
-    // generate1()?;
-    // solve0()?;
-    solve1()?;
+    let flag = env::args().nth(1).unwrap_or_default();
+    match flag.as_str() {
+        "solve" => {
+            solve0()?;
+            solve1()?;
+        }
+        "generate" => {
+            generate1()?;
+            generate0()?;
+        }
+        _ => {
+            eprintln!("Usage: See README.md");
+        }
+    }
     Ok(())
 }
 
 fn generate0() -> Result<()> {
-    let mut c1 = std::fs::read("challenge-1.txt")?;
-    while c1.len() % 4 != 0 {
-        c1.push(b'\n');
+    let mut input = fs::read("challenge-1.txt")?;
+    let mut out = BufWriter::new(File::create("challenge-0.txt")?);
+    // Pad input to multiple of 4 bytes
+    while input.len() % 4 != 0 {
+        input.push(b'\n');
     }
-    c1.chunks_exact(4)
-        .map(crc32fast::hash)
-        .for_each(|h| println!("{:0>8X}", h));
+    // Write header with challenge description first
+    let header = fs::read_to_string("header-0.txt")?;
+    writeln!(out, "{header}")?;
+    // Calculate single round hashes for input
+    let hashes = input.chunks_exact(4).map(crc32fast::hash);
+    for hash in hashes {
+        writeln!(out, "{:0>8X}", hash)?;
+    }
+    out.flush()?;
+    eprintln!("Wrote challenge-0.txt");
     Ok(())
 }
 
 fn generate1() -> Result<()> {
-    let mut c1 = std::fs::read("challenge-2.txt")?;
-    while c1.len() % 4 != 0 {
-        c1.push(b'\n');
+    let mut input = fs::read("challenge-2.txt")?;
+    let mut out = BufWriter::new(File::create("challenge-1.txt")?);
+    // Pad input to multiple of 4 bytes
+    while input.len() % 4 != 0 {
+        input.push(b'\n');
     }
+    // Write header with challenge description first
+    let header = fs::read_to_string("header-1.txt")?;
+    writeln!(out, "{header}")?;
+    // Calculate multiple round hashes for input
     eprintln!("Generating multiple rounds of CRC32 every 4 bytes");
+    // PRNG generate number of rounds per input
     let mut r = 42;
-    let rounds: Vec<(u32, u64)> = c1
+    let rounds: Vec<(u32, u64)> = input
         .chunks_exact(4)
         .map(|buf| {
             r = prng(r);
@@ -38,6 +68,7 @@ fn generate1() -> Result<()> {
             (h, r)
         })
         .collect();
+    // Calculate crc32's with correct number of rounds
     let total = (rounds.len() / 4) as u64;
     let results: Vec<(String, u64)> = rounds
         .into_par_iter()
@@ -45,8 +76,10 @@ fn generate1() -> Result<()> {
         .progress_count(total)
         .collect();
     for (h, count) in results {
-        println!("{h}:{count}");
+        writeln!(out, "{h}:{count}")?;
     }
+    out.flush()?;
+    eprintln!("Wrote challenge-1.txt");
     Ok(())
 }
 
@@ -54,7 +87,7 @@ fn solve0() -> Result<()> {
     let table = build_rainbow_table();
     eprintln!("Applying reverse lookups");
     let mut out: Vec<u8> = Vec::new();
-    std::fs::read_to_string("challenge-0.txt")?
+    fs::read_to_string("challenge-0.txt")?
         .lines()
         .filter(|line| !line.starts_with('#') && line.len() == 8)
         .for_each(|line| {
@@ -71,7 +104,7 @@ fn solve0() -> Result<()> {
 fn solve1() -> Result<()> {
     let table = build_rainbow_table();
     eprintln!("Parsing challenge file");
-    let jobs: Vec<(u64, u32)> = std::fs::read_to_string("challenge-1.txt")?
+    let jobs: Vec<(u64, u32)> = fs::read_to_string("challenge-1.txt")?
         .lines()
         .filter(|line| !line.starts_with('#') && !line.is_empty())
         .map(|line| {
@@ -125,52 +158,6 @@ fn unhash_rounds(table: &[u32], count: u64, mut h: u32) -> u32 {
     }
     let index = count as usize % memo.len();
     memo[index]
-}
-
-// Builds a table in sorted order of hash(0), hash(hash(0)), hash(hash(hash(0))), ...
-// This is so you can easily skip rounds once you've found your hash, you just
-// increment the index by n to skip n rounds.
-fn build_sequence_tables() -> (Vec<Vec<u32>>, Vec<(u32, u32)>) {
-    eprintln!("Generating input->crc32 checksum memo table");
-    // group_id -> sequence table: hash, hash(hash), ...
-    let mut groups: Vec<Vec<u32>> = Vec::new();
-    // hash -> (group_id, index)
-    let mut hash_index: Vec<Option<(u32, u32)>> = vec![None; u32::MAX as usize + 1];
-    /*
-    will need dual indexes
-    group_id -> sequence table: hash, hash(hash), ...
-    hash -> (group_id, index)
-
-    will need to still process all u32's
-    and find all groups of periods for all of them
-    but can be similar to checking visited and speeding up along the way, such that it's almost O(n)
-    */
-    for i in 0..=u32::MAX {
-        // Skip already processed hashes
-        if hash_index[i as usize].is_some() {
-            continue;
-        }
-        // Build entire sequence for this hash
-        let mut last = i;
-        let mut seq = Vec::new();
-        while i != last || seq.is_empty() {
-            last = crc32fast::hash(&u32_to_u8_slice(last));
-            seq.push(last);
-        }
-        // Add hashes to index
-        let group_id = groups.len() as u32;
-        for (i, &h) in seq.iter().enumerate() {
-            assert!(hash_index[h as usize].is_none(), "hash collision, should be impossible since it should match an existing group sequence");
-            hash_index[h as usize] = Some((group_id, i as u32));
-        }
-        eprintln!(
-            "Sequence {group_id} of length {} starting at hash {i}",
-            seq.len()
-        );
-        groups.push(seq);
-    }
-    let hash_index: Option<Vec<_>> = hash_index.into_iter().collect();
-    (groups, hash_index.expect("full hash index"))
 }
 
 // Builds a table of crc32 u32 -> input u32

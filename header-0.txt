@@ -1,0 +1,15 @@
+# Challenge 0
+# By: Eric Hebert
+# Please take a look at https://toroban.com/ if you enjoy these puzzles.
+#
+#
+#  ██████ ██   ██  █████  ██      ██      ███████ ███    ██  ██████  ███████      ██████
+# ██      ██   ██ ██   ██ ██      ██      ██      ████   ██ ██       ██          ██  ████
+# ██      ███████ ███████ ██      ██      █████   ██ ██  ██ ██   ███ █████       ██ ██ ██
+# ██      ██   ██ ██   ██ ██      ██      ██      ██  ██ ██ ██    ██ ██          ████  ██
+#  ██████ ██   ██ ██   ██ ███████ ███████ ███████ ██   ████  ██████  ███████      ██████
+#
+#
+# Hint: Each line is a crc32 generated from 4 bytes of input data.
+# The rust crate crc32fast was used to generate the data for these challenges.
+#
