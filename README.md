@@ -14,6 +14,8 @@ cargo run -r generate
 
 Uses challenge-0.txt as input. Produces the other files as ouput.
 
+:warning: Requires at least 16 GiB free RAM to store the rainbow tables.
+
 ```
 cargo run -r solve
 ```
