@@ -1,6 +1,6 @@
-# Challenge 0
+# Challenge 0 Solution
 
-A small programming puzzle with crc32.
+A small programming puzzle with crc32. If you'd like to try the challenge on your own, start here: [https://ayebear.com/challenge-0.txt](https://ayebear.com/challenge-0.txt)
 
 ## To generate
 
